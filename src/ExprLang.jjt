@@ -1,0 +1,188 @@
+// By: Soha Hussein May 19th 2017
+
+options
+{
+  IGNORE_CASE = false;
+  MULTI=true;
+  VISITOR = true;
+  STATIC = false;
+}
+
+PARSER_BEGIN(SecureMPCParser)
+
+import java.io.*;
+import java.util.*;
+
+public class SecureMPCParser
+{ 
+
+  public static void main(String[] args) throws ParseException, FileNotFoundException
+  {
+    
+    if (args.length < 1)
+    {
+      System.out.println("Please pass in the filename.");
+      System.exit(1);
+    }
+    
+    SecureMPCParser sparser = new SecureMPCParser(new FileInputStream(args[0]));
+
+    SimpleNode root = sparser.program();
+/*
+    System.out.println("Abstract Syntax Tree:");
+
+    root.dump(" ");
+  */ 
+
+    System.out.println();
+    System.out.println("Program:\n");
+    PrintVisitor printVisit = new PrintVisitor();
+    root.jjtAccept(printVisit, null);
+ 
+    System.out.println();
+    System.out.println("--------------------------------\n Obliv Visitor:\n");
+    OblivVisitor oblivVisit = new OblivVisitor();
+
+    SimpleNode oblivRoot = (SimpleNode)root.jjtAccept(oblivVisit, null);
+    
+   // PrintVisitor oblivPv = new PrintVisitor();
+	oblivRoot.jjtAccept(printVisit, null);
+	 
+  }
+}
+
+PARSER_END(SecureMPCParser)
+
+TOKEN_MGR_DECLS:
+{
+  static int linenumber = 0;
+}
+
+SKIP:   /* Whitespace */
+{
+  "\t"
+| "\n" {linenumber++;}
+| "\r"
+| " "
+}
+
+TOKEN:
+{
+  <LPAREN: "(">
+| <RPAREN: ")">
+| <ADD_OP: "+" | "-">
+| <MULT_OP: "*" | "/">
+| <NOT_OP: "~">
+| <BOOL_OP: "&" | "|">
+| <INT: "int">
+| <BOOL: "bool">
+| <NUMBER: (["0"-"9"])+>
+| <SEMI: ";">
+| <LBRAC: "{">
+| <RBRAC: "}">
+| <IF: "if">
+| <THEN: "then">
+| <ELSE: "else">
+| <ASSIGN: ":=">
+| <GREATERTHANE: ">=">
+| <TAINT: "taint">
+| <MUX: "mux">
+| <COMMA: ",">
+| <TRUE: "true">
+| <FALSE: "false">
+| <ID: (["a"-"z","A"-"Z"])+>
+}
+
+
+
+SimpleNode program() #PROGRAM: {}
+{
+   Blc() < EOF> { return jjtThis;}
+}
+
+void Blc() #Block:
+{}
+{
+  <LBRAC> (Dcl()<SEMI>)* (Exp()<SEMI>)* <RBRAC>
+}
+
+void Dcl() #Declaration: { }
+{
+  Primitive()
+| Taint() 
+}
+
+void Taint() #Taint: {String varname; }
+{
+   <TAINT>< LPAREN> varname=Primitive()< RPAREN>
+}
+
+String Primitive() #Primitive: {  String name;}
+{
+  Type() name=Id()
+  {
+    return name;
+  }  
+}
+
+String Type() #Type: { Token t;}
+{
+ t = <INT> { jjtThis.value=t.image; return t.image;}
+|t = <BOOL> { jjtThis.value=t.image; return t.image;}
+ }
+
+
+
+void Exp() #Exp: { }
+{
+  Assignment()   
+| Ifstatement()
+| Num()
+| Bool()}
+
+void Assignment() #Assignment: {}
+{
+  LOOKAHEAD(3)
+  	Id() <ASSIGN> Literal()
+|   Id() <ASSIGN> Mux()
+}
+
+void Mux() #Mux : { Token t;}
+{
+  t = <MUX> <LPAREN>Id() <COMMA> Literal() <COMMA> Operation() <RPAREN> { jjtThis.value=t.image;}
+}
+
+void Ifstatement() #If  : { Token t;}
+{ t= <IF> (Operation())+ <THEN> Blc() <ELSE> Blc() { jjtThis.value=t.image;}
+}
+
+void Operation() #operation: { Token t;}
+{
+  t = <LPAREN>Literal()<GREATERTHANE>Literal()<RPAREN> {jjtThis.value=t.image;}
+| Literal()
+}
+
+void Literal() #void: { }
+{
+   Num()
+ | Id()
+ | Bool()}
+
+ void Bool() #BOOL : { Token t;} {
+   t= <TRUE> { jjtThis.value=t.image;}
+ | t= <FALSE> { jjtThis.value=t.image;}
+ }
+
+String Id() #ID: { Token t;}
+{
+ t = <ID>
+ {
+   jjtThis.value = t.image;
+   return t.image;
+ }
+}
+
+void Num() #Num : { Token t;}
+{
+ t = <NUMBER> { jjtThis.value=t.image;}
+}

@@ -1,0 +1,95 @@
+
+options
+{
+  IGNORE_CASE = false;
+  MULTI=true;
+  VISITOR = true;
+  STATIC = false;
+}
+
+
+PARSER_BEGIN(daikon)
+
+class daikon {
+  public static void main(String args[]) {
+	if (args.length < 1) {
+      System.out.println("Please pass in the filename.");
+      System.exit(1);
+      }
+    
+    daikon daikonParser = new daikon(new FileInputStream(args[0]));
+    try {
+      SimpleNode root = daikonParser.Start();
+      n.dump("");
+    } catch (Exception e) {
+      System.out.println("Something went wrong. Failing.");
+      System.out.println(e.getMessage());
+      e.printStackTrace();
+    }
+  }
+}
+
+PARSER_END(daikon)
+
+
+SKIP :
+{
+  " "
+| "\t"
+}
+
+TOKEN:
+{
+  <NEWLINE: "\n">
+| <LPAREN: "(">
+| <RPAREN: ")">
+| <LBRAC: "{">
+| <RBRAC: "}">
+| <RELATIONALOP: "==" | "!=" | ">=" | "<" | ">" | "=< " | "||">
+| <MATH_OP: "+" | "-" | "*" | "/">
+| <PERIOD: ".">
+| <COMMA: ",">
+| <TEMPORALOP: "\\old" | "\\new">
+| <THIS :"this.">
+| <#LETTER: ["a"-"z","A"-"Z"] >
+| <#DIGIT: ["0"-"9"]>
+| <IDENTIFIER: <LETTER> ( <LETTER> | <DIGIT> | "_")* >
+| <INTEGER: "0" | ("-")? ["1"-"9"] (<DIGIT>)* >
+}
+
+
+
+SimpleNode Start() #PropertyList: {}
+{
+  (Expression() < NEWLINE>)+   { return jjtThis; }
+}
+
+
+void Expression() #Expression: { }
+{
+  Literal() <RELATIONALOP> Literal() {jjtThis.value=t.image; }
+}
+
+void Literal() #void: { }
+{
+   Num()
+ | <RELATIONALOP> <LPAREN>Id()<RPAREN>
+ |  Id()}
+
+
+String Id() #ID: { Token t;}
+{
+ t = <THIS> <IDENTIFIER> { jjtThis.value = t.image;
+						   return t.image;}
+| t = <IDENTIFIER>
+ {
+   jjtThis.value = t.image;
+   return t.image;
+ }
+}
+
+
+void Num() #Num : { Token t;}
+{
+ t = <INTEGER> { jjtThis.value=t.image;}
+}
